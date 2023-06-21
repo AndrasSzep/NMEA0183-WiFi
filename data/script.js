@@ -38,14 +38,23 @@ function updateSliderPWM(element) {
     websocket.send(sliderNumber+"s"+sliderValue.toString());
 }
 
+// Event handler for receiving messages from the server
 function onMessage(event) {
     console.log(event.data);
-    var myObj = JSON.parse(event.data);
-    var keys = Object.keys(myObj);
+      var data = JSON.parse(event.data);
 
-    for (var i = 0; i < keys.length; i++){
-        var key = keys[i];
-        document.getElementById(key).innerHTML = myObj[key];
-        document.getElementById("slider"+ (i+1).toString()).value = myObj[key];
-    }
+      // Update the respective spans with the received data
+      document.getElementById('timedate').textContent = data.timedate;
+      document.getElementById('rpm').textContent = data.rpm;
+      document.getElementById('depth').textContent = data.depth;
+      document.getElementById('speed').textContent = data.speed;
+      document.getElementById('heading').textContent = data.heading;
+      document.getElementById('windspeed').textContent = data.windspeed;
+      document.getElementById('winddir').textContent = data.winddir;
+      document.getElementById('longitude').textContent = data.longitude;
+      document.getElementById('latitude').textContent = data.latitude;
+      document.getElementById('watertemp').textContent = data.watertemp;
+      document.getElementById('humidity').textContent = data.humidity;
+      document.getElementById('pressure').textContent = data.pressure;
+      document.getElementById('airtemp').textContent = data.airtemp;
 }
