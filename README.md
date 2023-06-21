@@ -1,6 +1,6 @@
 # NMEA0183-to-WEBSockets
 
-/                      by Dr.Anrás Szép andras.szep@gmail.com v1.0 2023-05-22
+/                      by Dr.Anrás Szép andras.szep@gmail.com v1.1 2023-06-22
 Parses NMEA0183 messages broadcasted from UDP server (i.e. NMEA simulator https://github.com/panaaj/nmeasimulator or OpenCPN) and display on a website using websockets
 
 The server HTML/CSS/js files are in the data directory.
