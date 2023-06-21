@@ -1,4 +1,20 @@
 /* 
+by Dr.András Szép v1.1 22.6.2023 GPL license.
+
+This is an Arduino ESP32 code to display UDP-broadcasted NMEA0183 messages 
+(like from a NMEA0183 simulator https://github.com/panaaj/nmeasimulator )
+through a webserver to be seen on any mobile device for free
+websockets used to autoupdate the data.
+
+Local WiFi attributes are stored at SPIFFS /ssid and /password.
+WPS never tested.
+
+Environmental sensors connected to read air temp/humidity/pressure data.
+
+ToDo: check True / Magnetic heading wind directions
+      True and Apparent wind speed and directions
+
+incorporate NMEA2000 can bus connection to receive data along with UDP.
 
 */
 
@@ -274,6 +290,8 @@ void processPacket(int packetSize) {
           int seconds = stringBD.UTC.substring(4, 6).toInt();
           stringBD.UTC = int2string(hours) + ":" + int2string(minutes) + ":" + int2string(seconds);
           timedate = stringBD.UTC;          
+        } else if (command == "GSA") { //GPS Sat
+        //
         } else if (command == "HDG") {
           stringBD.Heading = nmeaStringData[1];
           heading = stringBD.Heading;
@@ -317,6 +335,23 @@ void processPacket(int packetSize) {
             stringBD.RPM = String( int (nmeaStringData[3].toDouble()/10));
             rpm = stringBD.RPM; 
           }
+        } else if (command == "RPM") {
+          if (nmeaStringData[2] == "1") {     //engine no.1
+            stringBD.RPM = String( int (nmeaStringData[3].toDouble()/10));
+            rpm = stringBD.RPM; 
+          }
+        } else if (command == "VBW") {  //dual ground/water speed longitudal/transverse
+        //
+        } else if (command == "VHW") {  
+          stringBD.Heading = nmeaStringData[1];
+          heading = stringBD.Heading;
+          stringBD.HeadingM = nmeaStringData[3];
+          heading = stringBD.HeadingM;              
+          stringBD.Speed = nmeaStringData[5];
+          heading = stringBD.Speed;      
+        //
+        } else if (command == "VTG") {  //Track Made Good and Ground Speed
+        //
         } else if (command == "ZDA") {
           stringBD.Date = nmeaStringData[4] + "-" + nmeaStringData[3] + "-" + nmeaStringData[2];
           stringBD.UTC = nmeaStringData[1];
