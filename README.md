@@ -1,16 +1,4 @@
-# NMEA0183-to-WEBSockets
-
-/                      by Dr.Anrás Szép andras.szep@gmail.com v1.1 2023-06-22
-Parses NMEA0183 messages broadcasted from UDP server (i.e. NMEA simulator https://github.com/panaaj/nmeasimulator or OpenCPN) and display on a website using websockets
-
-The server HTML/CSS/js files are in the data directory.
-The current version of Arduino IDE does not support uploading or PlatformIO, so use the [ESP32f](https://github.com/palmerr23/ESP32-OTA-and-File-Manager)
-
- In addition,  SPIFFS is used to store the WiFi network credentials in the /ssid.txt and /password.txt files.
-
- 
-Here are some commands from the NMEA0183 that were implemented.
-
+//                      by Dr.Anrás Szép andras.szep@gmail.com v1.0 2023-05-22
 
 DBK Depth Below Keel
 $--DBK,x.x,f,x.x,M,x.x,F*hh

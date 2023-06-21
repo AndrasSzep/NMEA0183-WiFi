@@ -73,6 +73,14 @@ String retrieveString(String path) {
   return content;
 }
 
+String int2string(int number) {
+  if (number < 10) {
+    return "0" + String(number);
+  } else {
+    return String(number);
+  }
+}
+
 String convertGPString(String input) {
   // Extract degrees, minutes, and seconds from the input string
   int idx = input.indexOf(".");
@@ -80,6 +88,8 @@ String convertGPString(String input) {
   int minutes = input.substring( (idx-2), idx).toInt();
   int seconds = int(input.substring( idx, idx+5).toFloat()*100.0*0.60);
   // Format the converted values into the desired format
-  String output = String(degrees) + "º" + String(minutes) + "'" +  String(seconds) + "\"";
+  String output = int2string(degrees) + "º" + int2string(minutes) + "'" +  int2string(seconds) + "\"";
   return output;
 }
+
+
