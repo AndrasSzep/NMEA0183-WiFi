@@ -179,15 +179,15 @@ void initWebSocket() {
 
 void setup() {
   Serial.begin(115200);
-  delay(100);
-  Serial.println("\n**** NMEA0183 from UDP->->WEB ****");
+  delay(1000);
+  Serial.println("\n\n**** NMEA0183 from UDP->->WEB ****");
 
 #ifdef ENVSENSOR
     M5.begin();             // Init M5StickC.  初始化M5StickC
     Wire.begin(SDA_PIN, SCL_PIN);
     delay(100);
     qmp6988.init();
-    Serial.println(F("ENVIII Hat(SHT30 and QMP6988) test"));
+    Serial.println(F("ENVIII Hat(SHT30 and QMP6988) has initialized "));
 #endif
 
   initFS();
@@ -358,7 +358,7 @@ void processPacket(int packetSize) {
           int hours = stringBD.UTC.substring(0, 2).toInt();
           int minutes = stringBD.UTC.substring(2, 4).toInt();
           int seconds = stringBD.UTC.substring(4, 6).toInt();
-          stringBD.UTC = String(hours, DEC) + ":" + String(minutes, DEC) + ":" + String(seconds, DEC);
+          stringBD.UTC = int2string(hours) + ":" + int2string(minutes) + ":" + int2string(seconds);
           timedate = stringBD.Date + " " + stringBD.UTC;     
         } 
         else {
