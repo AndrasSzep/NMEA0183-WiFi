@@ -9,11 +9,13 @@ window.addEventListener('load', onload);
 const tempcanvas = document.querySelector('#tempchart');
 const humcanvas = document.querySelector('#humchart');
 const prescanvas = document.querySelector('#preschart');
+const watercanvas = document.querySelector('#waterchart');
 
 // Create the chart contexts
 const tempCtx = tempcanvas.getContext('2d');
 const humCtx = humcanvas.getContext('2d');
 const presCtx = prescanvas.getContext('2d');
+const waterCtx = watercanvas.getContext('2d');
 
 var currentHour = 10; // Replace with the actual current hour value
 var lastHour = 8; // Replace with the actual last hour value
@@ -25,6 +27,38 @@ function getRandomValue(a,b) {
     return Math.random() * a + b;
 }
 
+const waterchart = new Chart(waterCtx, {
+    type: 'line',
+    data: {
+        labels: Array.from({ length: 24 }, (_, i) => (i-24).toString()),
+        datasets: [
+            {
+                label: 'Water',
+                data: Array.from({ length: 24 }, () => getRandomValue(10,15)),
+    			backgroundColor: 'rgba(110,169,228,0.50)',
+				borderColor: 'rgba(84,102,255,1.00)',
+				borderWidth: 1,
+				pointRadius: 1,
+				fill: true,
+				tension: 0.5,
+            },
+        ],
+    },
+    options: {
+        responsive: true,
+		maintainAspectRatio: false,
+		plugins: {
+			legend: {
+				display: false // Set display to false to hide the legend
+			}
+		},
+		scales: {
+            y: {
+                beginAtZero: false,
+            },
+        },
+    },
+});
 
 const tempchart = new Chart(tempCtx, {
     type: 'line',
@@ -34,17 +68,23 @@ const tempchart = new Chart(tempCtx, {
             {
                 label: 'Temperature',
                 data: Array.from({ length: 24 }, () => getRandomValue(10,15)),
-    			backgroundColor: 'rgba(104,149,241,0.50)',
-				borderColor: 'rgba(84,102,255,1.00)',
+    			backgroundColor: 'rgba(238,196,30,0.50)',
+				borderColor: 'rgba(242,255,83,1.00)',
 				borderWidth: 1,
+				pointRadius: 1,
 				fill: true,
-				tension: 0.5, // Set the tension value for a smooth line
+				tension: 0.5,
             },
         ],
     },
     options: {
         responsive: true,
 		maintainAspectRatio: false,
+		plugins: {
+			legend: {
+				display: false // Set display to false to hide the legend
+			}
+		},
 		scales: {
             y: {
                 beginAtZero: false,
@@ -64,14 +104,20 @@ const humchart = new Chart(humCtx, {
     			backgroundColor: 'rgba(132,238,169,0.50)',
 				borderColor: 'rgba(52,186,77,0.88)',
 				borderWidth: 1,
+				pointRadius: 1,
 				fill: true,
-				tension: 0.5, // Set the tension value for a smooth line
-            },
+				tension: 0.5,
+			},
         ],
     },
     options: {
         responsive: true,
 		maintainAspectRatio: false,
+		plugins: {
+			legend: {
+				display: false // Set display to false to hide the legend
+			}
+		},
 		scales: {
             y: {
                 beginAtZero: false,
@@ -91,14 +137,20 @@ const preschart = new Chart(presCtx, {
     			backgroundColor: 'rgba(255,119,62,0.50)',
 				borderColor: 'rgba(225,117,140,1.00)',
 				borderWidth: 1,
+				pointRadius: 1,
 				fill: true,
-				tension: 0.5, // Set the tension value for a smooth line
-            },
+				tension: 0.5,
+			},
         ],
     },
     options: {
         responsive: true,
 		maintainAspectRatio: false,
+		plugins: {
+			legend: {
+				display: false // Set display to false to hide the legend
+			}
+		},
 		scales: {
             y: {
                 beginAtZero: false,
@@ -158,25 +210,30 @@ function onMessage(event) {
       document.getElementById('winddir').textContent = data.winddir;
       document.getElementById('longitude').textContent = data.longitude;
       document.getElementById('latitude').textContent = data.latitude;
-      document.getElementById('watertemp').textContent = data.watertemp;
 
 		if (currentMinute !== lastMinute) {
   			lastMinute = currentMinute;	
+			
+			document.getElementById('watertemp').textContent = data.watertemp;
+			var waterTemp = parseInt(data.watertemp, 10); 
+    		waterchart.data.datasets[0].data.shift();
+    		waterchart.data.datasets[0].data.push(waterTemp);
+    		waterchart.update();		
+			
       		document.getElementById('airtemp').textContent = data.airtemp;
-			var airTemp = parseInt(data.airtemp, 10); // Convert the string to a numeric value
-    		// Update the chart with the new value
+			var airTemp = parseInt(data.airtemp, 10); 
     		tempchart.data.datasets[0].data.shift();
     		tempchart.data.datasets[0].data.push(airTemp);
     		tempchart.update();
 	
 	  		document.getElementById('humidity').textContent = data.humidity;
-			var airHumidity = parseInt(data.humidity, 10); // Convert the string to a numeric value
+			var airHumidity = parseInt(data.humidity, 10); 
     		humchart.data.datasets[0].data.shift();
     		humchart.data.datasets[0].data.push(airHumidity);
     		humchart.update();
 
 			document.getElementById('pressure').textContent = data.pressure;
-			var airPressure = parseInt(data.pressure, 10); // Convert the string to a numeric value
+			var airPressure = parseInt(data.pressure, 10); 
     		preschart.data.datasets[0].data.shift();
     		preschart.data.datasets[0].data.push(airPressure);
     		preschart.update();
