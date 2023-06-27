@@ -23,15 +23,21 @@ html {
     padding: 30px;
   }
   .card-grid {
-    max-width: 750px;
-    margin: 0 auto;
-    display: grid;
-    grid-gap: 2rem;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	max-width: 750px;
+	margin: 0 auto;
+	display: grid;
+	grid-gap: 2rem;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   }
   .card {
-    background-color: white;
-    box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
+ 	 background-color: transparent;
+ 	 box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
+ 	 position: relative;
+  }
+  .card canvas {
+ 	 position: absolute;
+ 	 top: 0;
+ 	 left: 0;
   }
   .card-title {
     font-size: 2.0rem;
@@ -76,3 +82,13 @@ html {
     padding-left: 5%;
     padding-right: 5%;
   }
+.canvas-container {
+  width: 100%;
+  height: 70%;
+}
+
+#myCanvas {
+  width: 100%;
+  height: 100%;
+}
+
