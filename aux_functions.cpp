@@ -46,6 +46,15 @@ int parseNMEA0183( String sentence, String data[]) {
   return noOfFields+1;
 }
 
+// Initialize SPIFFS
+void initFS() {
+  if (!SPIFFS.begin()) {
+    Serial.println("An error has occurred while mounting SPIFFS");
+  }
+  else{
+   Serial.println("SPIFFS mounted successfully");
+  }
+}
 
 void storeString(String path, String content) {
   File file = SPIFFS.open(path, FILE_WRITE);
@@ -91,5 +100,88 @@ String convertGPString(String input) {
   String output = int2string(degrees) + "º" + int2string(minutes) + "'" +  int2string(seconds) + "\"";
   return output;
 }
+String readStoredData( char* filename){
+  const int ARRAY_SIZE = 25;
+  int iArray[ARRAY_SIZE];
 
+  // Read data from the SPIFFS file
+  File file = SPIFFS.open(filename, "r");
+  if (!file) {
+    Serial.printf("Failed to open %s file\n", filename);
+    return "";
+  }
 
+  // Read data into the array
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    iArray[i] = file.parseInt();
+    if (file.peek() == ',') {
+      file.read(); // Skip the comma
+    }
+  }
+  file.close();
+
+  // Generate comma-separated string from the array
+  String commaSeparatedString;
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    commaSeparatedString += String(iArray[i]);
+    if (i < ARRAY_SIZE - 1) {
+      commaSeparatedString += ",";
+    }
+  }
+//  Serial.println(commaSeparatedString);
+  return commaSeparatedString;
+}
+
+String updateStoredData(char* filename, int newValue) {
+  const int ARRAY_SIZE = 25;
+  int iArray[ARRAY_SIZE];
+
+  // Read data from the SPIFFS file
+  File file = SPIFFS.open(filename, "r");
+  if (!file) {
+    Serial.printf("Failed to open %s file\n", filename);
+    return "";
+  }
+
+  // Read data into the array
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    iArray[i] = file.parseInt();
+    if (file.peek() == ',') {
+      file.read(); // Skip the comma
+    }
+  }
+  file.close();
+
+  // Perform the required operations on the array
+  for (int i = 0; i < ARRAY_SIZE - 1; i++) {
+    iArray[i] = iArray[i + 1];
+  }
+  iArray[ARRAY_SIZE - 1] = newValue; // Replace with the new value
+
+  // Write the modified data back to the SPIFFS file
+  file = SPIFFS.open(filename, "w");
+  if (!file) {
+    Serial.printf("Failed to open %s file for writing\n", filename);
+    return "";
+  }
+
+  // Write the modified array to the file
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    file.print(iArray[i]);
+    if (i < ARRAY_SIZE - 1) {
+      file.print(",");
+    }
+  }
+  file.close();
+
+  // Generate comma-separated string from the modified array
+  String commaSeparatedString;
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    commaSeparatedString += String(iArray[i]);
+    if (i < ARRAY_SIZE - 1) {
+      commaSeparatedString += ",";
+    }
+  }
+//  Serial.println(commaSeparatedString);
+  return commaSeparatedString;
+}

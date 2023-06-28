@@ -2,9 +2,9 @@
 #define _BoatData_H_
 
 struct  sBoatData{
-  String TrueHeading,SOG = "6",COG = "13",Variation, Heading,
+  String SOG ,COG , HeadingT, HeadingM, Speed,
          GPSTime, UTC, Date , // Secs since midnight,
-         Latitude, Longitude, Altitude, HDOP, GeoidalSeparation, DGPSAge,
+         Latitude, Longitude, Altitude, 
          WaterTemperature , WaterDepth , Offset,
          RPM, Humidity, Pressure, AirTemperature ,
          WindDirectionT, WindDirectionM, WindSpeedK, WindSpeedM,
