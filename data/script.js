@@ -22,43 +22,47 @@ var lastHour = 8; // Replace with the actual last hour value
 var currentMinute = 10; // Replace with the actual current hour value
 var lastMinute = 8; // Replace with the actual last hour value
 
+var fileNames = [
+  '/temperature.txt',
+  '/humidity.txt',
+  '/pressure.txt',
+  '/water.txt',
+];
+
+var chartContexts = [
+  tempCtx,
+  humCtx,
+  presCtx,
+  waterCtx,
+];
+
+
+function fetchFile(fileName, chartContext, chart) {
+  fetch(fileName)
+    .then(function(response) {
+      if (response.ok) {
+        return response.text();
+      }
+      throw new Error('Error: ' + response.status);
+    })
+    .then(function(fileContent) {
+      var fileValues = fileContent.split(',').map(Number);
+
+      chart.data.datasets[0].data = fileValues;
+      chart.update();
+
+      console.log('Chart updated successfully.');
+    })
+    .catch(function(error) {
+      console.log(error);
+    });
+}
+
+
 // Generate a random value between 15 and 25
 function getRandomValue(a,b) {
     return Math.random() * a + b;
 }
-
-const waterchart = new Chart(waterCtx, {
-    type: 'line',
-    data: {
-        labels: Array.from({ length: 24 }, (_, i) => (i-24).toString()),
-        datasets: [
-            {
-                label: 'Water',
-                data: Array.from({ length: 24 }, () => getRandomValue(10,15)),
-    			backgroundColor: 'rgba(110,169,228,0.50)',
-				borderColor: 'rgba(84,102,255,1.00)',
-				borderWidth: 1,
-				pointRadius: 1,
-				fill: true,
-				tension: 0.5,
-            },
-        ],
-    },
-    options: {
-        responsive: true,
-		maintainAspectRatio: false,
-		plugins: {
-			legend: {
-				display: false // Set display to false to hide the legend
-			}
-		},
-		scales: {
-            y: {
-                beginAtZero: false,
-            },
-        },
-    },
-});
 
 const tempchart = new Chart(tempCtx, {
     type: 'line',
@@ -159,6 +163,53 @@ const preschart = new Chart(presCtx, {
     },
 });
 
+const waterchart = new Chart(waterCtx, {
+    type: 'line',
+    data: {
+        labels: Array.from({ length: 24 }, (_, i) => (i-24).toString()),
+        datasets: [
+            {
+                label: 'Water',
+                data: Array.from({ length: 24 }, () => getRandomValue(10,15)),
+    			backgroundColor: 'rgba(110,169,228,0.50)',
+				borderColor: 'rgba(84,102,255,1.00)',
+				borderWidth: 1,
+				pointRadius: 1,
+				fill: true,
+				tension: 0.5,
+            },
+        ],
+    },
+    options: {
+        responsive: true,
+		maintainAspectRatio: false,
+		plugins: {
+			legend: {
+				display: false // Set display to false to hide the legend
+			}
+		},
+		scales: {
+            y: {
+                beginAtZero: false,
+            },
+        },
+    },
+});
+
+var charts = [
+  tempchart,
+  humchart,
+  preschart,
+  waterchart
+];
+
+fileNames.forEach(function(fileName, index) {
+  var chart = charts[index];
+  var chartContext = chartContexts[index];
+
+  fetchFile(fileName, chartContext, chart);
+});
+
 function onload(event) {
     initWebSocket();
 }
@@ -184,7 +235,7 @@ function onClose(event) {
     console.log('Connection closed');
     setTimeout(initWebSocket, 2000);
 }
-
+/*
 function updateSliderPWM(element) {
     var sliderNumber = element.id.charAt(element.id.length-1);
     var sliderValue = document.getElementById(element.id).value;
@@ -192,50 +243,81 @@ function updateSliderPWM(element) {
     console.log(sliderValue);
     websocket.send(sliderNumber+"s"+sliderValue.toString());
 }
-
+*/
 // Event handler for receiving messages from the server
 function onMessage(event) {
  //   console.log(event.data);
-      var data = JSON.parse(event.data);
-
-      // Update the respective spans with the received data
-      document.getElementById('timedate').textContent = data.timedate;
-		var currentHour = parseInt(data.timedate.split(" ")[1].split(":")[0]);
-		var currentMinute = parseInt(data.timedate.split(" ")[1].split(":")[1]);
-      document.getElementById('rpm').textContent = data.rpm;
-      document.getElementById('depth').textContent = data.depth;
-      document.getElementById('speed').textContent = data.speed;
-      document.getElementById('heading').textContent = data.heading;
-      document.getElementById('windspeed').textContent = data.windspeed;
-      document.getElementById('winddir').textContent = data.winddir;
-      document.getElementById('longitude').textContent = data.longitude;
-      document.getElementById('latitude').textContent = data.latitude;
-
-		if (currentMinute !== lastMinute) {
-  			lastMinute = currentMinute;	
-			
-			document.getElementById('watertemp').textContent = data.watertemp;
-			var waterTemp = parseInt(data.watertemp, 10); 
-    		waterchart.data.datasets[0].data.shift();
-    		waterchart.data.datasets[0].data.push(waterTemp);
-    		waterchart.update();		
-			
-      		document.getElementById('airtemp').textContent = data.airtemp;
-			var airTemp = parseInt(data.airtemp, 10); 
-    		tempchart.data.datasets[0].data.shift();
-    		tempchart.data.datasets[0].data.push(airTemp);
-    		tempchart.update();
-	
-	  		document.getElementById('humidity').textContent = data.humidity;
-			var airHumidity = parseInt(data.humidity, 10); 
-    		humchart.data.datasets[0].data.shift();
-    		humchart.data.datasets[0].data.push(airHumidity);
-    		humchart.update();
-
-			document.getElementById('pressure').textContent = data.pressure;
-			var airPressure = parseInt(data.pressure, 10); 
-    		preschart.data.datasets[0].data.shift();
-    		preschart.data.datasets[0].data.push(airPressure);
-    		preschart.update();
+	var data = JSON.parse(event.data);
+	console.log(data);
+	if('timedate' in data){
+		document.getElementById('timedate').textContent = data.timedate;
+		if (data.timedate !== undefined && data.timedate !== null) {
+			const timeParts = data.timedate.split(" ");
+			if (timeParts.length >= 2) {
+				const hourParts = timeParts[1].split(":");
+				if (hourParts.length >= 2) {
+					currentHour = parseInt(hourParts[0]);
+					currentMinute = parseInt(hourParts[1]);
+				} else {
+					console.log("Invalid time format: missing minute");
+				}
+			} else if (timeParts.length === 1) {
+				const hourParts = timeParts[0].split(":");
+				if (hourParts.length >= 2) {
+					currentHour = parseInt(hourParts[0]);
+					currentMinute = parseInt(hourParts[1]);
+				} else {
+					console.log("Invalid time format: missing minute");
+				}
+			} else {
+				console.log("Invalid time format");
+			}
+		} else {
+			console.log("timedate is undefined or null");
 		}
+	}
+	
+    // Update the respective spans with the received dat
+    if('rpm' in data) {document.getElementById('rpm').textContent = data.rpm;}
+    if('depth' in data) {document.getElementById('depth').textContent = data.depth;}
+    if('speed' in data) {document.getElementById('speed').textContent = data.speed;}
+    if('heading' in data) {document.getElementById('heading').textContent = data.heading;}
+    if('windspeed' in data) {document.getElementById('windspeed').textContent = data.windspeed;}
+    if('winddir' in data) {document.getElementById('winddir').textContent = data.winddir;}
+    if('latitude' in data) {document.getElementById('latitude').textContent = data.latitude;}
+    if('longitude' in data) {document.getElementById('longitude').textContent = data.longitude;}
+	
+//	if (currentMinute !== lastMinute) {
+  //		lastMinute = currentMinute;	
+			
+	console.log("updating charts");
+		if( 'airtemp' in data) {
+			document.getElementById('airtemp').textContent = data.airtemp;
+			var airTemp = parseInt(data.airtemp, 10); 
+    		charts[0].data.datasets[0].data.shift();
+    		charts[0].data.datasets[0].data.push(airTemp);
+    		charts[0].update();		
+		}
+		if( 'humidity' in data) {			
+      		document.getElementById('humidity').textContent = data.humidity;
+			var airHumidity = parseInt(data.humidity, 10); 
+    		charts[1].data.datasets[0].data.shift();
+    		charts[1].data.datasets[0].data.push(airHumidity);
+    		charts[1].update();
+		}
+		if( 'pressure' in data) {
+	  		document.getElementById('pressure').textContent = data.pressure;
+			var airPressure = parseInt(data.pressure, 10); 
+    		charts[2].data.datasets[0].data.shift();
+    		charts[2].data.datasets[0].data.push(airPressure);
+    		charts[2].update();
+		}
+		if( 'watertemp' in data) {
+			document.getElementById('watertemp').textContent = data.watertemp;
+			var waterTemperature = parseInt(data.watertemp, 10); 
+    		charts[3].data.datasets[0].data.shift();
+    		charts[3].data.datasets[0].data.push(waterTemperature);
+    		charts[3].update();
+		}
+//	}
 }
