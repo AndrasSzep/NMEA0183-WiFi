@@ -1,6 +1,7 @@
 /* 
-by Dr.András Szép v1.2 30.6.2023 GPL license.
-
+by Dr.András Szép v1.2 30.6.2023 GNU General Public License (GPL).
+*/
+/*
 This is an AI (chatGPT) assisted development for
  Arduino ESP32 code to display UDP-broadcasted NMEA0183 messages 
 (like from a NMEA0183 simulator https://github.com/panaaj/nmeasimulator )
@@ -23,6 +24,7 @@ incorporate NMEA2000 can bus connection to receive data along with UDP.
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <NTPClient.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
@@ -44,15 +46,17 @@ incorporate NMEA2000 can bus connection to receive data along with UDP.
 #include "M5_ENV.h"
 SHT3X sht30(0x44, 1);
 QMP6988 qmp6988;
-float airTemp      = 0.0;
-float airHumidity  = 0.0;
-float airPressure = 0.0;
-#define ENVINTERVAL 5000  // Interval in milliseconds (5 seconds)
+float airTemp      = 20.0;
+float airHumidity  = 50.0;
+float airPressure = 760.0;
+#define ENVINTERVAL 60000  // Interval in milliseconds 
+#define STOREINTERVAL 3600000 // store env data in SPIFFS ones/hour
 #endif
+#define UDPINTERVAL 1000  //ignore UDP received within 1 second
 
 unsigned long previousMillis = 0;  // Variable to store the previous time
-
-
+unsigned  long  storedMillis  = 0;  //time of last stored env.data
+unsigned long previousPacketMillis = 0;  // Variable to store the previous packet reception time
 
 char nmeaLine[MAX_NMEA0183_MSG_BUF_LEN]; //NMEA0183 message buffer
 size_t i=0, j=1;                          //indexers
@@ -61,10 +65,11 @@ int noOfFields = MAX_NMEA_FIELDS;  //max number of NMEA0183 fields
 String nmeaStringData[MAX_NMEA_FIELDS + 1];
 
 WiFiUDP udp;
+NTPClient timeClient(udp, ntpServer, timeZone);
+time_t utcTime = 0;
 sBoatData stringBD;   //Strings with BoatData
 tBoatData BoatData;         // BoatData
 
-int SourceID = UDPPort;
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 // Create a WebSocket object
@@ -86,32 +91,21 @@ String humidity = "50";
 String pressure = "760";
 String airtemp = "21";
 String pressurearray = "760,760,760,760,760,760,760,760,760,760,760,760,760,760,760,760,760,760,760,760,760,760,760,760,760";
-//Json Variable to Hold Slider Values
-DynamicJsonDocument sliderValues(1024);
+
 DynamicJsonDocument jsonDoc(1024);
 
-//Get Slider Values
-String getSliderValues(){
-  sliderValues["timedate"] = String(timedate);
-  sliderValues["rpm"] = String(rpm);
-  sliderValues["depth"] = String(depth);  
-  sliderValues["speed"] = String(speed);
-  sliderValues["heading"] = String(heading);
-  sliderValues["windspeed"] = String(windspeed);  
-  sliderValues["winddir"] = String(winddir);
-  sliderValues["longitude"] = String(longitude);
-  sliderValues["latitude"] = String(latitude);  
-  sliderValues["watertemp"] = String(watertemp);
-  sliderValues["humidity"] = String(humidity);
-  sliderValues["pressure"] = String(pressure);
-  sliderValues["airtemp"] = String(airtemp); 
-//  sliderValues["pressurearray"] = String(pressurearray);
-  String jsonString;
-  serializeJson(sliderValues, jsonString);
-//  String jsonString = JSON.stringify(sliderValues);
-  return jsonString;
+String getDT(){
+  timeClient.update();
+  utcTime = timeClient.getEpochTime(); 
+  struct tm *currentTime = gmtime(&utcTime);
+  char dateTime[20];
+  snprintf(dateTime, sizeof(dateTime), "%04d-%02d-%02d %02d:%02d:%02d",
+           currentTime->tm_year + 1900, currentTime->tm_mon + 1, currentTime->tm_mday,
+           currentTime->tm_hour, currentTime->tm_min, currentTime->tm_sec);
+  Serial.print("Date/Time: ");
+  Serial.println(dateTime);
+  return dateTime;
 }
-
 
 // Initialize WiFi
 void initWiFi() {
@@ -121,7 +115,7 @@ void initWiFi() {
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid.c_str(), password.c_str());
-  Serial.print("Connecting to WiFi ..");
+  Serial.print("Connecting to WiFi ...");
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
     delay(1000);
@@ -129,6 +123,9 @@ void initWiFi() {
   Serial.println(WiFi.localIP());
   Serial.print("MAC address: ");
   Serial.println(WiFi.macAddress());
+    // Initialize the NTP client
+  timeClient.begin();
+  stringBD.UTC = getDT(); //store UTC
 }
 
 void notifyClients() {
@@ -147,41 +144,16 @@ void notifyClients() {
   }
 }
 
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
-  AwsFrameInfo *info = (AwsFrameInfo*)arg;
-  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-    data[len] = 0;
-    message = (char*)data;
-#ifdef DEBUG
-    Serial.print("handleWebSocketMessage: ");
-    Serial.println(message);
-#endif
-    if (strcmp((char*)data, "getValues") == 0) {
-//      notifyClients(getSliderValues());
-    }
-  }
-}
-
 void handleRequest(AsyncWebServerRequest *request) {
   if (request->url() == "/historicdata") {  
     // Create a JSON document
     DynamicJsonDocument jsonDoc(1024);
-
     //read data
     jsonDoc["histtemp"] = readStoredData("/temperature");
     jsonDoc["histhum"] = readStoredData("/humidity");
     jsonDoc["histpres"] = readStoredData("/pressure");
     jsonDoc["histwater"] = readStoredData("/water");
-    
-    // Serialize the JSON document to a string
-    String jsonString;
-    serializeJson(jsonDoc, jsonString);
-    #ifdef DEBUG
-    Serial.print("handleRequest: ");
-    Serial.println(jsonString);
-    #endif
-    // Set the Content-Type header to application/json
-    request->send(200, "application/json", jsonString);
+    notifyClients();  
   }
 }
 
@@ -203,28 +175,17 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
         // Prepare JSON data
         DynamicJsonDocument jsonDoc(1024);
     //read data
-    jsonDoc["histtemp"] = readStoredData("/temperature");
-    jsonDoc["histhum"] = readStoredData("/humidity");
-    jsonDoc["histpres"] = readStoredData("/pressure");
-    jsonDoc["histwater"] = readStoredData("/water");
-   
-        // Serialize JSON to a string
-        String jsonString;
-        serializeJson(jsonDoc, jsonString);
-    #ifdef DEBUG
-    Serial.print("onEvent: ");
-    Serial.println(jsonString);
-    #endif
-        // Send the JSON string as a response
-//        request->send(200, "application/json", jsonString)
-        client->text(jsonString);
+        jsonDoc["histtemp"] = readStoredData("/temperature");
+        jsonDoc["histhum"] = readStoredData("/humidity");
+        jsonDoc["histpres"] = readStoredData("/pressure");
+        jsonDoc["histwater"] = readStoredData("/water");
+        notifyClients();  
       } else {
         // Handle other requests here
       }
     }
   }
 }
-
 
 void setup() {
   Serial.begin(115200);
@@ -288,8 +249,14 @@ void loop() {
     pressure = String( airPressure, 0);
     jsonDoc.clear();
     jsonDoc["airtemp"] = airtemp;  
-    jsonDoc["humidity"] = humidity;  
+    jsonDoc["humidity"] = humidity;
     jsonDoc["pressure"] = pressure;  
+    if (currentMillis - storedMillis >= STOREINTERVAL) {  //update stored value once/hour
+      pressurearray = updateStoredData("/temperature.txt", airtemp.toInt());
+      pressurearray = updateStoredData("/humidity.txt", humidity.toInt());
+      pressurearray = updateStoredData("/pressure.txt", pressure.toInt());
+      pressurearray = updateStoredData("/time.txt", utcTime);
+    }
     notifyClients();  
     previousMillis = currentMillis;
   }
@@ -302,7 +269,12 @@ void loop() {
 #endif
   int packetSize = udp.parsePacket();
   if (packetSize) {
-    processPacket(packetSize);
+//    if (currentMillis - previousPacketMillis >= UDPINTERVAL) {
+      processPacket(packetSize);
+//      previousPacketMillis = currentMillis;
+//    } else {
+//      udp.flush();
+//    }
   }
   ws.cleanupClients();
 }
@@ -338,10 +310,12 @@ Serial.println(packetBuffer);
           jsonDoc["depth"] = depth; 
           notifyClients();
         } else if (command == "DPT") {
+/*
           stringBD.WaterDepth = nmeaStringData[1];
           depth = stringBD.WaterDepth;
           jsonDoc["depth"] = depth; 
           notifyClients(); 
+*/
         } else if (command == "GGA") {
           stringBD.UTC = nmeaStringData[1];
           int hours = stringBD.UTC.substring(0, 2).toInt();
@@ -447,6 +421,12 @@ Serial.println(packetBuffer);
           }
         } else if (command == "VBW") {  //dual ground/water speed longitudal/transverse
         //
+        } else if (command == "VDO") {  
+        //
+        } else if (command == "VDM") {  
+        //
+        } else if (command == "APB") {  
+        //
         } else if (command == "VHW") {  //speed and Heading over water
           stringBD.HeadingT = String( int(nmeaStringData[1].toDouble()));
           heading = stringBD.HeadingT + "t";
@@ -474,7 +454,7 @@ Serial.println(packetBuffer);
 //          Serial.printf("ZDA %s", timedate);       
         } 
         else {
-          Serial.println(command);
+          Serial.println("unsupported NMEA0183 sentence");
         }
         jsonDoc.clear();
         j=0;

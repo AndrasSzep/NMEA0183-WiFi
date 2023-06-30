@@ -1,4 +1,6 @@
-
+/* 
+by Dr.András Szép under GNU General Public License (GPL).
+*/
 
 int parseNMEA0183( String sentence, String data[]);
 void initFS();

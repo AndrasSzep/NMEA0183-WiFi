@@ -1,6 +1,9 @@
-
+/* 
+by Dr.András Szép under GNU General Public License (GPL).
+*/
 #include <Arduino.h>  //necessary for the String variables
 #include <SPIFFS.h>
+#include <NTPClient.h>
 
 int parseNMEA0183( String sentence, String data[]) {
   int noOfFields = 0;
@@ -100,6 +103,7 @@ String convertGPString(String input) {
   String output = int2string(degrees) + "º" + int2string(minutes) + "'" +  int2string(seconds) + "\"";
   return output;
 }
+
 String readStoredData( char* filename){
   const int ARRAY_SIZE = 25;
   int iArray[ARRAY_SIZE];
@@ -128,7 +132,6 @@ String readStoredData( char* filename){
       commaSeparatedString += ",";
     }
   }
-//  Serial.println(commaSeparatedString);
   return commaSeparatedString;
 }
 
@@ -182,6 +185,7 @@ String updateStoredData(char* filename, int newValue) {
       commaSeparatedString += ",";
     }
   }
-//  Serial.println(commaSeparatedString);
+  Serial.printf("%s=", filename);
+  Serial.println(commaSeparatedString);
   return commaSeparatedString;
 }

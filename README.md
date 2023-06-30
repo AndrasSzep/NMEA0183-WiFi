@@ -1,4 +1,6 @@
-//                      by Dr.Anrás Szép andras.szep@gmail.com v1.0 2023-05-22
+/* 
+by Dr.András Szép under GNU General Public License (GPL).
+*/                  by Dr.Anrás Szép andras.szep@gmail.com v1.0 2023-05-22
 
 DBK Depth Below Keel
 $--DBK,x.x,f,x.x,M,x.x,F*hh

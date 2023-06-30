@@ -1,3 +1,6 @@
+/* 
+by Dr.András Szép under GNU General Public License (GPL).
+*/
 #ifndef _BoatData_H_
 #define _BoatData_H_
 
