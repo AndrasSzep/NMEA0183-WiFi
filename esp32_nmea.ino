@@ -1,9 +1,10 @@
 /* 
-by Dr.András Szép v1.2 30.6.2023 GNU General Public License (GPL).
+by Dr.András Szép v1.3 3.7.2023 GNU General Public License (GPL).
 */
+
 /*
 This is an AI (chatGPT) assisted development for
- Arduino ESP32 code to display UDP-broadcasted NMEA0183 messages 
+Arduino ESP32 code to display UDP-broadcasted NMEA0183 messages 
 (like from a NMEA0183 simulator https://github.com/panaaj/nmeasimulator )
 through a webserver to be seen on any mobile device for free.
 Websockets used to autoupdate the data.
@@ -12,29 +13,46 @@ in the SPIFFS files /pressure, /temperature, /humidity.
 The historical environmental data displayed in the background as charts.
 
 Local WiFi attributes are stored at SPIFFS in files named /ssid and /password.
-WPS never tested.
+WPS never been tested but assume working.
 
-ToDo: check True / Magnetic heading wind directions
-      True and Apparent wind speed and directions
-      LED lights on M5Atom
+Implemented OverTheAir update of the data files as well as the code itself on port 8080
+(i.e. http://nmea2000.local:8080 ) see config.h . 
+*** Arduino IDE 2.0 does not support file upload, this makes much simplier uploading updates 
+especially in the client and stored data files.
 
-incorporate NMEA2000 can bus connection to receive data along with UDP.
+ToDo: 
+      LED lights on M5Atom. Still need some ideas of colors and blinking signals
+
+      incorporate NMEA2000 can bus connection to receive data along with NMEA0183 on UDP.
 
 */
+#define LITTLE_FS 0
+#define SPIFFS_FS 1
+#define FILESYSTYPE SPIFFS_FS
+//const char *otahost = "OTASPIFFS";
+#define FILEBUFSIZ 4096
+
+#ifndef WM_PORTALTIMEOUT
+#define WM_PORTALTIMEOUT 180
+#endif
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClient.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include <Update.h>
+#include <WiFiServer.h>
 #include <NTPClient.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <ESPmDNS.h>
 #include "SPIFFS.h"
-//#include <Arduino_JSON.h>
 #include <ArduinoJson.h>
 #include  "config.h"
 #include  "BoatData.h"
 #include  "aux_functions.h"
-
+#include "webpages.h"
+#include "filecode.h"
 /*
 *******************************************************************************
 * Visit for more information: https://docs.m5stack.com/en/hat/hat_envIII
@@ -49,7 +67,7 @@ QMP6988 qmp6988;
 float airTemp      = 20.0;
 float airHumidity  = 50.0;
 float airPressure = 760.0;
-#define ENVINTERVAL 60000  // Interval in milliseconds 
+#define ENVINTERVAL 10000  // Interval in milliseconds 
 #define STOREINTERVAL 3600000 // store env data in SPIFFS ones/hour
 #endif
 #define UDPINTERVAL 1000  //ignore UDP received within 1 second
@@ -75,6 +93,9 @@ AsyncWebServer server(80);
 // Create a WebSocket object
 AsyncWebSocket ws("/ws");
 
+WebServer servOTA(OTAPORT);    //webserver for OnTheAir update on port 8080
+bool fsFound = false;
+
 double  lastTime = 0.0;
 String message = "";
 String timedate = "1957-04-28 10:01:02";
@@ -94,18 +115,21 @@ String pressurearray = "760,760,760,760,760,760,760,760,760,760,760,760,760,760,
 
 DynamicJsonDocument jsonDoc(1024);
 
-String getDT(){
-  timeClient.update();
-  utcTime = timeClient.getEpochTime(); 
-  struct tm *currentTime = gmtime(&utcTime);
-  char dateTime[20];
-  snprintf(dateTime, sizeof(dateTime), "%04d-%02d-%02d %02d:%02d:%02d",
-           currentTime->tm_year + 1900, currentTime->tm_mon + 1, currentTime->tm_mday,
-           currentTime->tm_hour, currentTime->tm_min, currentTime->tm_sec);
-  Serial.print("Date/Time: ");
-  Serial.println(dateTime);
-  return dateTime;
+String getDT() {
+  time_t now = time(nullptr); // Get current time as time_t
+  struct tm* currentTime = gmtime(&now); // Convert time_t to struct tm in UTC
+
+  String dateTimeString;
+  dateTimeString += String(currentTime->tm_year + 1900) + "-";
+  dateTimeString += String(currentTime->tm_mon + 1) + "-";
+  dateTimeString += String(currentTime->tm_mday) + " ";
+  dateTimeString += String(currentTime->tm_hour) + ":";
+  dateTimeString += String(currentTime->tm_min) + ":";
+  dateTimeString += String(currentTime->tm_sec);
+
+  return dateTimeString;
 }
+
 
 // Initialize WiFi
 void initWiFi() {
@@ -200,7 +224,7 @@ void setup() {
     Serial.println(F("ENVIII Hat(SHT30 and QMP6988) has initialized "));
 #endif
 
-  initFS();       //initialalize file system SPIFFS
+  initFS(false ,false);       //initialalize file system SPIFFS
   initWiFi();     //init WifI from SPIFFS or WPS
 
   // Initialize UDP
@@ -231,6 +255,59 @@ void setup() {
     Serial.println("Error setting up MDNS responder!");   
   else
     Serial.printf("mDNS responder started = http://%s.local\n", servername);
+
+  servOTA.on("/", HTTP_GET, handleMain);
+
+  // upload file to FS. Three callbacks
+  servOTA.on(
+      "/update", HTTP_POST, []()
+      {
+    servOTA.sendHeader("Connection", "close");
+    servOTA.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    ESP.restart(); },
+      []()
+      {
+        HTTPUpload &upload = servOTA.upload();
+        if (upload.status == UPLOAD_FILE_START)
+        {
+          Serial.printf("Update: %s\n", upload.filename.c_str());
+          if (!Update.begin(UPDATE_SIZE_UNKNOWN))
+          { // start with max available size
+            Update.printError(Serial);
+          }
+        }
+        else if (upload.status == UPLOAD_FILE_WRITE)
+        {
+          /* flashing firmware to ESP*/
+          if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
+          {
+            Update.printError(Serial);
+          }
+        }
+        else if (upload.status == UPLOAD_FILE_END)
+        {
+          if (Update.end(true))
+          { // true to set the size to the current progress
+            Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+          }
+          else
+          {
+            Update.printError(Serial);
+          }
+        }
+      });
+
+  servOTA.on("/delete", HTTP_GET, handleFileDelete);
+  servOTA.on("/main", HTTP_GET, handleMain); // JSON format used by /edit
+  // second callback handles file uploads at that location
+  servOTA.on(
+      "/edit", HTTP_POST, []()
+      { servOTA.send(200, "text/html", "<meta http-equiv='refresh' content='1;url=/main'>File uploaded. <a href=/main>Back to list</a>"); },
+      handleFileUpload);
+  servOTA.onNotFound([]()
+                     {if(!handleFileRead(servOTA.uri())) servOTA.send(404, "text/plain", "404 FileNotFound"); });
+
+  servOTA.begin();
 }
 
 void loop() {
@@ -244,9 +321,9 @@ void loop() {
     } else {
         airTemp = 0, airHumidity = 0;
     }
-    airtemp = String( airTemp,1 );
-    humidity = String( airHumidity,1);
-    pressure = String( airPressure, 0);
+    airtemp = String( airTemp,1 ) + "°C";
+    humidity = String( airHumidity,1) + "%";
+    pressure = String( airPressure, 0) + "mm";
     jsonDoc.clear();
     jsonDoc["airtemp"] = airtemp;  
     jsonDoc["humidity"] = humidity;
@@ -276,6 +353,7 @@ void loop() {
 //      udp.flush();
 //    }
   }
+    servOTA.handleClient();
   ws.cleanupClients();
 }
 
@@ -353,42 +431,42 @@ Serial.println(packetBuffer);
         //
         } else if (command == "HDG") {
           stringBD.HeadingM = String( int(nmeaStringData[1].toDouble()));
-          heading = stringBD.HeadingM + "m";  
-          jsonDoc["heading"] = heading; 
+          heading = stringBD.HeadingM + "°";  
+          jsonDoc["heading"] = heading;
           notifyClients();
         } else if (command == "HDM") {
           stringBD.HeadingM = String( int(nmeaStringData[1].toDouble()));
-          heading = stringBD.HeadingM + "m";  
+          heading = stringBD.HeadingM + "°";  
           jsonDoc["heading"] = heading; 
           notifyClients();
         } else if (command == "HDT") {
           stringBD.HeadingT = String( int(nmeaStringData[1].toDouble()));
-          heading = stringBD.HeadingT + "t";  
+          heading = stringBD.HeadingT + "°";  
           jsonDoc["heading"] = heading; 
           notifyClients();
         } else if (command == "MTW") {
           stringBD.WaterTemperature = nmeaStringData[1];
-          watertemp = stringBD.WaterTemperature;  
+          watertemp = stringBD.WaterTemperature + "°C";  
           jsonDoc["watertemp"] = watertemp; 
           notifyClients();
         } else if (command == "MWD") {
           stringBD.WindDirectionT = String( int(nmeaStringData[1].toDouble()));
-          winddir  = stringBD.WindDirectionT + "t";  
+          winddir  = stringBD.WindDirectionT + " true";  
           jsonDoc["winddir"] = winddir;
           stringBD.WindDirectionM = String( int(nmeaStringData[3].toDouble()));
-          winddir  = stringBD.WindDirectionM + "m";  
-          jsonDoc["winddir"] = winddir;
+//          winddir  = stringBD.WindDirectionM + "m";  
+//          jsonDoc["winddir"] = winddir;
           stringBD.WindSpeedK = String( int(nmeaStringData[5].toDouble()));
-          windspeed = stringBD.WindSpeedK + nmeaStringData[6];  
+          windspeed = stringBD.WindSpeedK + " true";  
           jsonDoc["windspeed"] = windspeed; 
           notifyClients();
         } else if (command == "MWV") { //wind speed and angle
           stringBD.WindDirectionT = String( int(nmeaStringData[1].toDouble()));
-          winddir = stringBD.WindDirectionT + "t";  
+          winddir = stringBD.WindDirectionT + " app";  
           jsonDoc["winddir"] = winddir;
           stringBD.WindSpeedK = nmeaStringData[3];  
-          jsonDoc["windspeed"] = windspeed;
-          windspeed = stringBD.WindSpeedK + nmeaStringData[4]; 
+          windspeed = stringBD.WindSpeedK;  // + nmeaStringData[4];
+          jsonDoc["windspeed"] = windspeed + " app"; 
           notifyClients();
         } else if (command == "RMB") {    //nav info
 //          Serial.print("RMB");        //waypoint info
