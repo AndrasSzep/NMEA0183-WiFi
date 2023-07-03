@@ -51,8 +51,7 @@ ToDo:
 #include  "config.h"
 #include  "BoatData.h"
 #include  "aux_functions.h"
-#include "webpages.h"
-#include "filecode.h"
+
 /*
 *******************************************************************************
 * Visit for more information: https://docs.m5stack.com/en/hat/hat_envIII
@@ -95,6 +94,8 @@ AsyncWebSocket ws("/ws");
 
 WebServer servOTA(OTAPORT);    //webserver for OnTheAir update on port 8080
 bool fsFound = false;
+#include "webpages.h"            // include after declaring - WebServer servOTA(OTAPORT) 
+#include "filecode.h"
 
 double  lastTime = 0.0;
 String message = "";
