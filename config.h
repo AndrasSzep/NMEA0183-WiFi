@@ -2,10 +2,11 @@
 by Dr.András Szép under GNU General Public License (GPL).
 */
 #define DEBUG
-//#define STOREWIFI
+#define STOREWIFI
 #define ENVSENSOR       //environmental sensors connected
 
-const char*   servername  = "nmea0183";     //nDNS servername - http://servername.local
+#define OTAPORT 8080    //OTA port
+const char*   servername  = "nmea";     //nDNS servername - http://servername.local
 unsigned int UDPPort = 10110; // 10110 is the default NMEA0183 port#
 const char* ntpServer = "europe.pool.ntp.org";
 const int timeZone = 0;  // Your time zone in hours

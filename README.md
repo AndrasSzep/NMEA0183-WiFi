@@ -1,6 +1,32 @@
 /* 
-by Dr.András Szép under GNU General Public License (GPL).
-*/                  by Dr.Anrás Szép andras.szep@gmail.com v1.0 2023-05-22
+by Dr.András Szép v1.3 3.7.2023 GNU General Public License (GPL).
+*/
+
+/*
+This is an AI (chatGPT) assisted development for
+Arduino ESP32 code to display UDP-broadcasted NMEA0183 messages 
+(like from a NMEA0183 simulator https://github.com/panaaj/nmeasimulator )
+through a webserver to be seen on any mobile device for free.
+Websockets used to autoupdate the data.
+Environmental sensors incorporated and data for the last 24hours stored respectively
+in the SPIFFS files /pressure, /temperature, /humidity.
+The historical environmental data displayed in the background as charts.
+
+Local WiFi attributes are stored at SPIFFS in files named /ssid and /password.
+WPS never been tested but assume working.
+
+Implemented OverTheAir update of the data files as well as the code itself on port 8080
+(i.e. http://nmea2000.local:8080 ) see config.h . 
+*** Arduino IDE 2.0 does not support file upload, this makes much simplier uploading updates 
+especially in the client and stored data files.
+
+ToDo: 
+      LED lights on M5Atom. Still need some ideas of colors and blinking signals
+
+      incorporate NMEA2000 can bus connection to receive data along with NMEA0183 on UDP.
+
+*/
+
 
 DBK Depth Below Keel
 $--DBK,x.x,f,x.x,M,x.x,F*hh
