@@ -11,7 +11,7 @@
     <script src="chart.javascript"></script>
 <body>
     <div class="topnav">
-        <h1>NMEA <span id="timedate"> </span></h1>
+        <h1><span id="timedate"></span> <span id="chipid"></span>.local</h1>
     </div>
     <div class="content">
         <div class="card-grid">
@@ -32,11 +32,11 @@
                 <p class="state"><span id="heading"></span></p>
             </div>
             <div class="card">
-                <p class="card-title">Wind kn</p>
+                <p class="card-title">WindSpeed</p>
                 <p class="state-small"><span id="windspeed"></span></p>
             </div>
             <div class="card">
-                <p class="card-title">Wind &deg;</p>
+                <p class="card-title">WindDir</p>
                 <p class="state-small"><span id="winddir"></span></p>
             </div>
 			<div class="card">
@@ -54,7 +54,7 @@
             </div>
 			<div class="card">
 				<canvas id="tempchart"></canvas>
-                <p class="card-title">Air</p>
+                <p class="card-title">AirTemp</p>
                 <p class="state"><span id="airtemp"></span></p>
             </div>
             <div class="card">

@@ -249,6 +249,7 @@ function onMessage(event) {
  //   console.log(event.data);
 	var data = JSON.parse(event.data);
 	console.log(data);
+    if ('chipid' in data) { document.getElementById('chipid').textContent = data.chipid; }
 	if('timedate' in data){
 		document.getElementById('timedate').textContent = data.timedate;
 		if (data.timedate !== undefined && data.timedate !== null) {
@@ -276,7 +277,6 @@ function onMessage(event) {
 			console.log("timedate is undefined or null");
 		}
 	}
-	
     // Update the respective spans with the received dat
     if('rpm' in data) {document.getElementById('rpm').textContent = data.rpm;}
     if('depth' in data) {document.getElementById('depth').textContent = data.depth;}
@@ -293,9 +293,9 @@ function onMessage(event) {
 	console.log("updating charts");
 		if( 'airtemp' in data) {
 			document.getElementById('airtemp').textContent = data.airtemp;
-			var airTemp = parseInt(data.airtemp, 10); 
+			var airTemperature = parseInt(data.airtemp, 10); 
     		charts[0].data.datasets[0].data.shift();
-    		charts[0].data.datasets[0].data.push(airTemp);
+    		charts[0].data.datasets[0].data.push(airTemperature);
     		charts[0].update();		
 		}
 		if( 'humidity' in data) {			
